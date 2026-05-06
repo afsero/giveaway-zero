@@ -4,6 +4,7 @@ const API_BASE_URL = (
 ).replace(/\/$/, "");
 
 export type BotType = "random" | "heuristic" | "model";
+export type PlayableBotType = Extract<BotType, "random" | "heuristic">;
 export type PlayerColor = "white" | "black" | "random";
 export type SideToMove = "white" | "black";
 
@@ -130,12 +131,27 @@ async function requestJson<T>(
 
   if (!response.ok) {
     const details = await response.text();
-    throw new Error(
-      `${response.status} ${response.statusText}${details ? `: ${details}` : ""}`,
-    );
+    throw new Error(parseApiError(response, details));
   }
 
   return response.json() as Promise<T>;
+}
+
+function parseApiError(response: Response, details: string) {
+  if (!details) {
+    return `${response.status} ${response.statusText}`;
+  }
+
+  try {
+    const parsed = JSON.parse(details) as { detail?: unknown };
+    if (typeof parsed.detail === "string") {
+      return parsed.detail;
+    }
+  } catch {
+    return `${response.status} ${response.statusText}: ${details}`;
+  }
+
+  return `${response.status} ${response.statusText}: ${details}`;
 }
 
 export function getHealth() {

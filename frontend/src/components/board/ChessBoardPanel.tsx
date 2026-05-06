@@ -18,6 +18,7 @@ export type ChessBoardPanelProps = {
   orientation?: BoardOrientation;
   legalMoves?: LegalMoveMap;
   selectedSquare?: string | null;
+  disabled?: boolean;
   lastMove?: {
     from: string;
     to: string;
@@ -25,10 +26,16 @@ export type ChessBoardPanelProps = {
   } | null;
   arrows?: Arrow[];
   onMove?: (move: BoardMove) => void;
+  onSelectSquare?: (square: string | null) => void;
 };
 
 const lastMoveStyle = {
   boxShadow: "inset 0 0 0 9999px rgba(245, 158, 11, 0.24)",
+};
+
+const legalSourceStyle = {
+  boxShadow:
+    "inset 0 0 0 2px rgba(45, 212, 191, 0.34), inset 0 0 0 9999px rgba(45, 212, 191, 0.045)",
 };
 
 const selectedSquareStyle = {
@@ -63,6 +70,10 @@ function buildSquareStyles({
     mergeStyle(lastMove.to, lastMoveStyle);
   }
 
+  Object.keys(legalMoves ?? {}).forEach((sourceSquare) => {
+    mergeStyle(sourceSquare, legalSourceStyle);
+  });
+
   if (selectedSquare) {
     mergeStyle(selectedSquare, selectedSquareStyle);
     legalMoves?.[selectedSquare]?.forEach((targetSquare) => {
@@ -78,9 +89,11 @@ function ChessBoardPanel({
   orientation = mockBoardState.orientation,
   legalMoves = mockBoardState.legalMoves,
   selectedSquare = mockBoardState.selectedSquare,
+  disabled = false,
   lastMove = mockBoardState.lastMove,
-  arrows = mockBoardState.candidateArrows,
+  arrows = [],
   onMove,
+  onSelectSquare,
 }: ChessBoardPanelProps) {
   const squareStyles = buildSquareStyles({
     legalMoves,
@@ -97,6 +110,7 @@ function ChessBoardPanel({
       return false;
     }
 
+    onSelectSquare?.(sourceSquare);
     onMove?.({
       sourceSquare,
       targetSquare,
@@ -115,11 +129,22 @@ function ChessBoardPanel({
     showNotation: true,
     showAnimations: true,
     animationDurationInMs: 120,
-    allowDragging: Boolean(onMove),
+    allowDragging: Boolean(onMove) && !disabled,
+    canDragPiece: ({ square }) =>
+      !disabled && Boolean(square && legalMoves?.[square]),
     allowDrawingArrows: true,
     clearArrowsOnClick: false,
     clearArrowsOnPositionChange: false,
     onPieceDrop: handlePieceDrop,
+    onPieceClick: ({ square }) => {
+      onSelectSquare?.(square && legalMoves?.[square] ? square : null);
+    },
+    onPieceDrag: ({ square }) => {
+      onSelectSquare?.(square && legalMoves?.[square] ? square : null);
+    },
+    onSquareClick: ({ square }) => {
+      onSelectSquare?.(legalMoves?.[square] ? square : null);
+    },
     boardStyle: {
       borderRadius: "8px",
       boxShadow: "0 24px 70px rgba(0, 0, 0, 0.38)",
@@ -155,7 +180,10 @@ function ChessBoardPanel({
           Variant: <span className="font-medium text-slate-100">Giveaway</span>
         </div>
         <div className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-2">
-          Rules: <span className="font-medium text-slate-100">Not validated</span>
+          Rules:{" "}
+          <span className="font-medium text-slate-100">
+            Backend validated
+          </span>
         </div>
         <div className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-2">
           Last move:{" "}
@@ -164,10 +192,6 @@ function ChessBoardPanel({
           </span>
         </div>
       </div>
-      <p className="text-center text-xs leading-5 text-slate-500">
-        Drag and drop is sent to the placeholder API; this board still does not
-        validate Giveaway rules locally.
-      </p>
     </div>
   );
 }

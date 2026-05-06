@@ -1,16 +1,21 @@
 import CandidateMoves from "./CandidateMoves";
 import MoveHistory from "./MoveHistory";
-import type { CandidateMove, MoveRecord } from "../../data/mockGame";
+import type { LocalMoveEntry } from "./MoveHistory";
+import type { CandidateMove } from "../../data/mockGame";
 
 type AnalysisPanelProps = {
   candidateMoves?: CandidateMove[];
-  moveHistory?: MoveRecord[];
+  moveHistory?: LocalMoveEntry[];
+  historyIndex?: number;
+  onSelectHistoryIndex?: (historyIndex: number) => void;
   botMessage?: string | null;
 };
 
 function AnalysisPanel({
   candidateMoves,
   moveHistory,
+  historyIndex,
+  onSelectHistoryIndex,
   botMessage,
 }: AnalysisPanelProps) {
   return (
@@ -32,7 +37,11 @@ function AnalysisPanel({
       ) : null}
       <div className="grid gap-4">
         <CandidateMoves moves={candidateMoves} />
-        <MoveHistory records={moveHistory} />
+        <MoveHistory
+          entries={moveHistory}
+          currentIndex={historyIndex}
+          onSelectIndex={onSelectHistoryIndex}
+        />
       </div>
     </div>
   );

@@ -1,13 +1,20 @@
 import { Activity, Bot, Database, Gauge } from "lucide-react";
 import { modelStatus } from "../../data/mockGame";
-import type { ModelStatusResponse } from "../../lib/api";
+import type { ModelStatusResponse, PlayableBotType } from "../../lib/api";
 
 type ModelStatusCardProps = {
   status?: ModelStatusResponse | null;
   isLoading?: boolean;
+  botType: PlayableBotType;
+  onBotTypeChange: (botType: PlayableBotType) => void;
 };
 
-function ModelStatusCard({ status, isLoading = false }: ModelStatusCardProps) {
+function ModelStatusCard({
+  status,
+  isLoading = false,
+  botType,
+  onBotTypeChange,
+}: ModelStatusCardProps) {
   const rows = [
     {
       label: "Variant",
@@ -23,6 +30,11 @@ function ModelStatusCard({ status, isLoading = false }: ModelStatusCardProps) {
       label: "Model loaded",
       value: status ? (status.model_loaded ? "Yes" : "No") : "Pending",
       icon: Gauge,
+    },
+    {
+      label: "Opponent",
+      value: botType === "heuristic" ? "HeuristicBot" : "RandomBot",
+      icon: Bot,
     },
   ];
 
@@ -47,6 +59,21 @@ function ModelStatusCard({ status, isLoading = false }: ModelStatusCardProps) {
           ? "Loading backend model status..."
           : status?.engine_mode ?? modelStatus.mode}
       </div>
+
+      <label className="mb-4 block text-sm font-medium text-slate-400">
+        Bot type
+        <select
+          value={botType}
+          disabled={isLoading}
+          onChange={(event) =>
+            onBotTypeChange(event.target.value as PlayableBotType)
+          }
+          className="mt-2 w-full rounded-md border border-white/10 bg-slate-950/70 px-3 py-2 text-sm font-medium text-slate-100 outline-none transition focus:border-mint/45 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <option value="random">RandomBot</option>
+          <option value="heuristic">HeuristicBot</option>
+        </select>
+      </label>
 
       <div className="grid gap-2">
         {rows.map(({ label, value, icon: Icon }) => (
