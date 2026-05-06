@@ -49,6 +49,20 @@ function MoveHistory({
 
       {groupedRecords.length > 0 ? (
         <div className="overflow-hidden rounded-md border border-white/10 bg-slate-950/20">
+          <button
+            type="button"
+            aria-label="Preview start position"
+            className={`flex w-full items-center justify-between gap-3 border-b border-white/10 px-3 py-2 text-left text-sm transition ${
+              currentIndex === 0
+                ? "bg-mint/[0.12] text-mint ring-1 ring-inset ring-mint/35"
+                : "text-slate-400 hover:bg-white/[0.045] hover:text-slate-200"
+            }`}
+            onClick={() => onSelectIndex?.(0)}
+          >
+            <span className="font-semibold">Start</span>
+            <span className="text-xs opacity-70">Initial board</span>
+          </button>
+
           {groupedRecords.map((record) => (
             <div
               key={record.moveNumber}
@@ -91,6 +105,10 @@ function MoveCell({ data, isCurrent, side, onSelectIndex }: MoveCellProps) {
 
   const label = data.entry.san || data.entry.uci;
   const actorLabel = data.entry.actor === "user" ? "You" : "Bot";
+  const actorClass =
+    data.entry.actor === "user"
+      ? "border-mint/25 bg-mint/10 text-mint"
+      : "border-ember/25 bg-ember/10 text-amber-200";
 
   return (
     <button
@@ -99,16 +117,23 @@ function MoveCell({ data, isCurrent, side, onSelectIndex }: MoveCellProps) {
       title={`Ply ${data.entry.ply}: ${data.entry.uci}`}
       className={`min-w-0 px-2 py-2 text-left text-sm font-medium transition ${
         isCurrent
-          ? "bg-mint/[0.12] text-mint"
+          ? "bg-mint/[0.12] text-mint ring-1 ring-inset ring-mint/35"
           : side === "white"
             ? "text-slate-200 hover:bg-white/[0.045]"
             : "text-slate-400 hover:bg-white/[0.045]"
       }`}
       onClick={() => onSelectIndex?.(data.historyIndex + 1)}
     >
-      <span className="block truncate">{label}</span>
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="truncate">{label}</span>
+        <span
+          className={`shrink-0 rounded border px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase leading-none ${actorClass}`}
+        >
+          {actorLabel}
+        </span>
+      </span>
       <span className="block truncate text-xs font-normal opacity-60">
-        {actorLabel} · {data.entry.uci}
+        ply {data.entry.ply} / {data.entry.uci}
       </span>
     </button>
   );

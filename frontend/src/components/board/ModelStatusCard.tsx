@@ -5,6 +5,7 @@ import type { ModelStatusResponse, PlayableBotType } from "../../lib/api";
 type ModelStatusCardProps = {
   status?: ModelStatusResponse | null;
   isLoading?: boolean;
+  isBusy?: boolean;
   botType: PlayableBotType;
   onBotTypeChange: (botType: PlayableBotType) => void;
 };
@@ -12,6 +13,7 @@ type ModelStatusCardProps = {
 function ModelStatusCard({
   status,
   isLoading = false,
+  isBusy = false,
   botType,
   onBotTypeChange,
 }: ModelStatusCardProps) {
@@ -64,7 +66,7 @@ function ModelStatusCard({
         Bot type
         <select
           value={botType}
-          disabled={isLoading}
+          disabled={isLoading || isBusy}
           onChange={(event) =>
             onBotTypeChange(event.target.value as PlayableBotType)
           }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Clock3, Wifi, WifiOff } from "lucide-react";
 import { mockBoardState } from "../../data/mockGame";
 import type { BoardArrow, CandidateMove } from "../../data/mockGame";
@@ -64,6 +64,8 @@ function BoardPage() {
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [pendingPromotion, setPendingPromotion] =
     useState<PendingPromotion | null>(null);
+  const requestSequenceRef = useRef(0);
+  const interactionLockedRef = useRef(false);
 
   const isLoading = requestPhase !== null;
   const activeGameState = snapshots[historyIndex]?.state ?? gameState;
@@ -93,7 +95,14 @@ function BoardPage() {
   const gameOverSummary = formatGameOverSummary(activeGameState);
   const reviewNotice =
     activeGameState && !isViewingLatest
-      ? `Reviewing local snapshot ${historyIndex} of ${snapshots.length - 1}. Return to latest before moving.`
+      ? `Viewing history at ply ${activeGameState.ply}. The board is read-only until you return to the latest position.`
+      : null;
+  const emptyLegalMovesNotice =
+    activeGameState &&
+    !activeGameState.game_over &&
+    isViewingLatest &&
+    activeGameState.legal_moves.length === 0
+      ? "No backend legal moves are available for this position."
       : null;
   const isPlayerTurn =
     activeGameState?.player_color !== "random" &&
@@ -103,6 +112,7 @@ function BoardPage() {
       isViewingLatest &&
       !isLoading &&
       !activeGameState.game_over &&
+      legalMovesList.length > 0 &&
       isPlayerTurn,
   );
   const canBotMove = Boolean(
@@ -110,19 +120,37 @@ function BoardPage() {
       isViewingLatest &&
       !isLoading &&
       !activeGameState.game_over &&
+      legalMovesList.length > 0 &&
       activeGameState.player_color !== "random" &&
       activeGameState.turn !== activeGameState.player_color,
   );
-  const canUndo = isViewingLatest && moveHistory.length > 0;
+  const canBoardInteract = canUserMove && !pendingPromotion;
+  const canUndo = isViewingLatest && !isLoading && moveHistory.length > 0;
   const canPrevious = historyIndex > 0;
   const canNext = historyIndex < snapshots.length - 1;
 
+  function beginRequest() {
+    requestSequenceRef.current += 1;
+    interactionLockedRef.current = true;
+    return requestSequenceRef.current;
+  }
+
+  function isCurrentRequest(requestId: number) {
+    return requestSequenceRef.current === requestId;
+  }
+
+  function finishRequest(requestId: number) {
+    if (!isCurrentRequest(requestId)) {
+      return;
+    }
+
+    interactionLockedRef.current = false;
+    setRequestPhase(null);
+  }
+
   useEffect(() => {
-    const sourceSquares = Object.keys(legalMoves);
     setSelectedSquare((current) =>
-      current && sourceSquares.includes(current)
-        ? current
-        : sourceSquares[0] ?? null,
+      current && legalMoves[current] ? current : null,
     );
   }, [currentFen, legalMoves]);
 
@@ -130,23 +158,25 @@ function BoardPage() {
     let isMounted = true;
 
     async function loadBoard() {
+      const requestId = beginRequest();
       setRequestPhase("initializing");
       setApiError(null);
+      setSelectedSquare(null);
 
       try {
         const health = await getHealth();
-        if (!isMounted) {
+        if (!isMounted || !isCurrentRequest(requestId)) {
           return;
         }
         setApiStatus("connected");
         setLastApiMessage(`${health.service} ${health.version} is online`);
       } catch (error) {
-        if (!isMounted) {
+        if (!isMounted || !isCurrentRequest(requestId)) {
           return;
         }
         setApiStatus("disconnected");
         setApiError(formatApiError(error));
-        setLastApiMessage("Backend API is unavailable; showing local fallback.");
+        setLastApiMessage("Backend API is disconnected; showing local fallback.");
       }
 
       try {
@@ -154,20 +184,23 @@ function BoardPage() {
           getModelStatus(),
           loadNewGame(DEFAULT_BOT_TYPE),
         ]);
-        if (!isMounted) {
+        if (!isMounted || !isCurrentRequest(requestId)) {
           return;
         }
         setModelStatus(status);
         resetGameSession(game);
         setLastApiMessage(game.message);
       } catch (error) {
-        if (!isMounted) {
+        if (!isMounted || !isCurrentRequest(requestId)) {
           return;
         }
         setApiError(formatApiError(error));
+        if (isApiDisconnectedError(error)) {
+          setApiStatus("disconnected");
+        }
       } finally {
         if (isMounted) {
-          setRequestPhase(null);
+          finishRequest(requestId);
         }
       }
     }
@@ -208,7 +241,7 @@ function BoardPage() {
     setMoveHistory([]);
     setBotResponse(null);
     setPendingPromotion(null);
-    setSelectedSquare(firstLegalSource(game));
+    setSelectedSquare(null);
   }
 
   function commitGameProgress(
@@ -220,23 +253,40 @@ function BoardPage() {
     setMoveHistory(entries);
     setSnapshots(nextSnapshots);
     setHistoryIndex(nextSnapshots.length - 1);
-    setSelectedSquare(firstLegalSource(state));
+    setPendingPromotion(null);
+    setSelectedSquare(null);
   }
 
   const handleNewGame = async () => {
+    if (interactionLockedRef.current) {
+      return;
+    }
+
+    const requestId = beginRequest();
     setRequestPhase("new-game");
     setApiError(null);
+    setBotResponse(null);
+    setPendingPromotion(null);
+    setSelectedSquare(null);
     try {
       const game = await loadNewGame(botType);
+      if (!isCurrentRequest(requestId)) {
+        return;
+      }
       resetGameSession(game);
       setLastApiMessage(game.message);
       setApiStatus("connected");
     } catch (error) {
-      setApiStatus("disconnected");
+      if (!isCurrentRequest(requestId)) {
+        return;
+      }
+      if (isApiDisconnectedError(error)) {
+        setApiStatus("disconnected");
+      }
       setApiError(formatApiError(error));
-      setLastApiMessage("Could not create a new backend game.");
+      setLastApiMessage("Could not start a new backend game.");
     } finally {
-      setRequestPhase(null);
+      finishRequest(requestId);
     }
   };
 
@@ -247,25 +297,38 @@ function BoardPage() {
     sourceSquare: string;
     targetSquare: string;
   }) => {
-    if (!activeGameState || isLoading) {
+    if (!activeGameState || isLoading || interactionLockedRef.current) {
       return;
     }
 
     if (!isViewingLatest) {
       // Simpler review policy: historical snapshots are read-only, so a drag
       // cannot fork the game or truncate future history.
-      setApiError("Return to the latest position before making a new move.");
-      setLastApiMessage("Move input is disabled while reviewing history.");
+      setSelectedSquare(null);
+      setPendingPromotion(null);
+      setApiError("Viewing history: return to the latest position before moving.");
+      setLastApiMessage("Move input is disabled while viewing history.");
       return;
     }
 
     if (activeGameState.game_over) {
-      setApiError("This game is over. Start a new game to move again.");
+      setSelectedSquare(null);
+      setPendingPromotion(null);
+      setApiError("Game over: use Undo or start a new game before moving.");
       return;
     }
 
     if (!isPlayerTurn) {
-      setApiError("Waiting for the backend bot to move.");
+      setSelectedSquare(null);
+      setPendingPromotion(null);
+      setApiError("Waiting for the backend bot move to finish.");
+      return;
+    }
+
+    if (legalMovesList.length === 0) {
+      setSelectedSquare(null);
+      setPendingPromotion(null);
+      setApiError("No backend legal moves are available for this position.");
       return;
     }
 
@@ -286,20 +349,30 @@ function BoardPage() {
       return;
     }
 
+    if (attemptedMove.type === "illegal") {
+      setSelectedSquare(null);
+      setPendingPromotion(null);
+      setApiError(formatIllegalMoveMessage(attemptedMove.uciMove));
+      setLastApiMessage("Move was not sent because it is not in the backend legal move list.");
+      return;
+    }
+
     void submitUserMove(attemptedMove.uciMove);
   };
 
   const submitUserMove = async (uciMove: string) => {
-    if (!activeGameState) {
+    if (!activeGameState || interactionLockedRef.current) {
       return;
     }
 
+    const requestId = beginRequest();
     const startingState = activeGameState;
     let nextHistory = moveHistory.slice(0, historyIndex);
     let nextSnapshots = snapshots.slice(0, historyIndex + 1);
     let userMoveApplied = false;
 
     setPendingPromotion(null);
+    setSelectedSquare(null);
     setBotResponse(null);
     setApiError(null);
     setRequestPhase("user-move");
@@ -312,6 +385,10 @@ function BoardPage() {
         player_color: startingState.player_color,
         bot_type: botType,
       });
+      if (!isCurrentRequest(requestId)) {
+        return;
+      }
+      setApiStatus("connected");
       const userEntry = createLocalMoveEntry({
         actor: "user",
         afterState: userState,
@@ -340,10 +417,18 @@ function BoardPage() {
         side_to_move: userState.turn,
         legal_moves: userState.legal_moves,
       });
+      if (!isCurrentRequest(requestId)) {
+        return;
+      }
+      setApiStatus("connected");
       setBotResponse(response);
 
       if (!response.selected_move) {
-        setLastApiMessage(response.message);
+        setLastApiMessage(
+          response.game_over
+            ? formatBotGameOverMessage(response) ?? response.message
+            : response.message || "Bot returned no legal move for this position.",
+        );
         return;
       }
 
@@ -353,6 +438,10 @@ function BoardPage() {
         player_color: userState.player_color,
         bot_type: botType,
       });
+      if (!isCurrentRequest(requestId)) {
+        return;
+      }
+      setApiStatus("connected");
       const botEntry = createLocalMoveEntry({
         actor: "bot",
         afterState: botState,
@@ -369,25 +458,35 @@ function BoardPage() {
           : `${response.message} Applied ${botEntry.san || botEntry.uci}.`,
       );
     } catch (error) {
+      if (!isCurrentRequest(requestId)) {
+        return;
+      }
+      if (isApiDisconnectedError(error)) {
+        setApiStatus("disconnected");
+      }
       setApiError(formatApiError(error));
       setLastApiMessage(
         userMoveApplied
-          ? "Bot move failed; your accepted move remains on the board."
-          : "Move rejected by backend; board unchanged.",
+          ? "Your move was accepted, but the bot reply failed; the board stays after your move."
+          : "Move rejected by the backend; the board is unchanged.",
       );
     } finally {
-      setRequestPhase(null);
+      finishRequest(requestId);
     }
   };
 
   const handleBotMove = async () => {
-    if (!activeGameState || !canBotMove) {
+    if (!activeGameState || !canBotMove || interactionLockedRef.current) {
       return;
     }
 
+    const requestId = beginRequest();
+    const startingState = activeGameState;
     let nextHistory = moveHistory.slice(0, historyIndex);
     let nextSnapshots = snapshots.slice(0, historyIndex + 1);
 
+    setSelectedSquare(null);
+    setPendingPromotion(null);
     setBotResponse(null);
     setApiError(null);
     setRequestPhase("bot-move");
@@ -397,31 +496,43 @@ function BoardPage() {
 
     try {
       const response = await getBotMove({
-        game_id: activeGameState.game_id,
-        fen: activeGameState.fen,
+        game_id: startingState.game_id,
+        fen: startingState.fen,
         bot_type: botType,
-        side_to_move: activeGameState.turn,
-        legal_moves: activeGameState.legal_moves,
+        side_to_move: startingState.turn,
+        legal_moves: startingState.legal_moves,
       });
+      if (!isCurrentRequest(requestId)) {
+        return;
+      }
+      setApiStatus("connected");
       setBotResponse(response);
 
       if (!response.selected_move) {
-        setLastApiMessage(response.message);
+        setLastApiMessage(
+          response.game_over
+            ? formatBotGameOverMessage(response) ?? response.message
+            : response.message || "Bot returned no legal move for this position.",
+        );
         return;
       }
 
       const botState = await makeMove({
-        fen: activeGameState.fen,
+        fen: startingState.fen,
         uci_move: response.selected_move,
-        player_color: activeGameState.player_color,
+        player_color: startingState.player_color,
         bot_type: botType,
       });
+      if (!isCurrentRequest(requestId)) {
+        return;
+      }
+      setApiStatus("connected");
       const botEntry = createLocalMoveEntry({
         actor: "bot",
         afterState: botState,
         fallbackSan: response.selected_san,
         fallbackUci: response.selected_move,
-        side: activeGameState.turn,
+        side: startingState.turn,
       });
       nextHistory = [...nextHistory, botEntry];
       nextSnapshots = [...nextSnapshots, { state: botState }];
@@ -432,15 +543,21 @@ function BoardPage() {
           : `${response.message} Applied ${botEntry.san || botEntry.uci}.`,
       );
     } catch (error) {
+      if (!isCurrentRequest(requestId)) {
+        return;
+      }
+      if (isApiDisconnectedError(error)) {
+        setApiStatus("disconnected");
+      }
       setApiError(formatApiError(error));
       setLastApiMessage("Bot move failed; board remains on the current FEN.");
     } finally {
-      setRequestPhase(null);
+      finishRequest(requestId);
     }
   };
 
   const handleUndo = () => {
-    if (!canUndo) {
+    if (!canUndo || interactionLockedRef.current) {
       return;
     }
 
@@ -467,7 +584,12 @@ function BoardPage() {
   };
 
   const handleHistoryIndexChange = (nextIndex: number) => {
-    if (isLoading || nextIndex < 0 || nextIndex >= snapshots.length) {
+    if (
+      isLoading ||
+      interactionLockedRef.current ||
+      nextIndex < 0 ||
+      nextIndex >= snapshots.length
+    ) {
       return;
     }
 
@@ -476,20 +598,36 @@ function BoardPage() {
     setGameState(snapshot.state);
     setBotResponse(null);
     setPendingPromotion(null);
+    setSelectedSquare(null);
     setApiError(null);
     setLastApiMessage(
       nextIndex === snapshots.length - 1
         ? "Returned to the latest position."
-        : `Reviewing local snapshot at ply ${snapshot.state.ply}.`,
+        : `Viewing history at ply ${snapshot.state.ply}; moves are disabled until you return to latest.`,
     );
   };
 
   const handleBotTypeChange = (nextBotType: PlayableBotType) => {
+    if (interactionLockedRef.current) {
+      return;
+    }
+
     setBotType(nextBotType);
     setBotResponse(null);
+    setPendingPromotion(null);
+    setSelectedSquare(null);
     setLastApiMessage(
       `${formatBotLabel(nextBotType)} selected for future backend bot moves.`,
     );
+  };
+
+  const handleSelectSquare = (square: string | null) => {
+    if (!canBoardInteract) {
+      setSelectedSquare(null);
+      return;
+    }
+
+    setSelectedSquare(square);
   };
 
   return (
@@ -527,17 +665,20 @@ function BoardPage() {
             orientation={orientation}
             legalMoves={legalMoves}
             selectedSquare={selectedBoardSquare}
-            disabled={!canUserMove}
+            disabled={!canBoardInteract}
             lastMove={lastMove}
             arrows={candidateArrows}
-            onSelectSquare={setSelectedSquare}
+            onSelectSquare={handleSelectSquare}
             onMove={handleBoardMove}
           />
           {pendingPromotion ? (
             <PromotionChooser
               pendingPromotion={pendingPromotion}
               disabled={isLoading}
-              onCancel={() => setPendingPromotion(null)}
+              onCancel={() => {
+                setPendingPromotion(null);
+                setSelectedSquare(null);
+              }}
               onSelect={(uciMove) => {
                 void submitUserMove(uciMove);
               }}
@@ -549,6 +690,11 @@ function BoardPage() {
           {requestPhase ? formatRequestPhase(requestPhase, botType) : lastApiMessage}
           {reviewNotice ? (
             <p className="mt-2 text-sm text-amber-200">{reviewNotice}</p>
+          ) : null}
+          {emptyLegalMovesNotice ? (
+            <p className="mt-2 text-sm text-amber-200">
+              {emptyLegalMovesNotice}
+            </p>
           ) : null}
           {gameOverSummary ? (
             <p className="mt-2 text-sm text-mint">{gameOverSummary}</p>
@@ -578,6 +724,7 @@ function BoardPage() {
         <ModelStatusCard
           status={modelStatus}
           isLoading={requestPhase === "initializing" && !modelStatus}
+          isBusy={isLoading}
           botType={botType}
           onBotTypeChange={handleBotTypeChange}
         />
@@ -770,11 +917,7 @@ function resolveAttemptedUciMove(
     return { type: "promotion" as const, moves: promotionMoves };
   }
 
-  return { type: "move" as const, uciMove: movePrefix };
-}
-
-function firstLegalSource(game: GameStateResponse) {
-  return Object.keys(game.legal_moves_by_square)[0] ?? null;
+  return { type: "illegal" as const, uciMove: movePrefix };
 }
 
 function formatGameStatus(state: GameStateResponse | null) {
@@ -786,6 +929,10 @@ function formatGameStatus(state: GameStateResponse | null) {
     return `Game over${state.result ? `: ${state.result}` : ""}`;
   }
 
+  if (state.legal_moves.length === 0) {
+    return "No legal moves";
+  }
+
   return formatSideToMove(state.turn ?? state.side_to_move) ?? "Active game";
 }
 
@@ -794,15 +941,31 @@ function formatGameOverSummary(state?: GameStateResponse | null) {
     return null;
   }
 
-  const result = state.result ? `Result ${state.result}` : "Result unavailable";
+  const result = state.result ?? "result unavailable";
   const winner = state.winner
     ? `${formatSideName(state.winner)} wins`
-    : "No winner";
+    : "Draw or no winner";
   const reason = state.termination_reason
-    ? `Reason: ${formatReason(state.termination_reason)}`
-    : "Reason: not provided";
+    ? formatTerminationReason(state.termination_reason)
+    : "termination reason unavailable";
 
-  return `${result}. ${winner}. ${reason}.`;
+  return `Game over: ${winner} (${result}). ${reason}.`;
+}
+
+function formatBotGameOverMessage(response: BotMoveResponse) {
+  if (!response.game_over) {
+    return null;
+  }
+
+  const result = response.result ?? "result unavailable";
+  const winner = response.winner
+    ? `${formatSideName(response.winner)} wins`
+    : "Draw or no winner";
+  const reason = response.termination_reason
+    ? formatTerminationReason(response.termination_reason)
+    : "termination reason unavailable";
+
+  return `Game over before bot move: ${winner} (${result}). ${reason}.`;
 }
 
 function formatRequestPhase(phase: Exclude<RequestPhase, null>, botType: PlayableBotType) {
@@ -834,6 +997,19 @@ function formatReason(reason: string) {
   return reason.replace(/_/g, " ");
 }
 
+function formatTerminationReason(reason: string) {
+  const readableReason = formatReason(reason);
+  const labels: Record<string, string> = {
+    insufficient_material: "drawn by insufficient material",
+    stalemate: "ended by stalemate or no legal move",
+    variant_draw: "drawn by Antichess variant rules",
+    variant_loss: "ended by Antichess loss condition",
+    variant_win: "ended by Antichess win condition",
+  };
+
+  return labels[reason] ?? `ended by ${readableReason}`;
+}
+
 function formatBotLabel(botType: PlayableBotType) {
   return botType === "heuristic" ? "HeuristicBot" : "RandomBot";
 }
@@ -852,7 +1028,29 @@ function formatPromotionLabel(uciMove: string) {
 
 function formatApiError(error: unknown) {
   const message = error instanceof Error ? error.message : "Unknown API error";
-  return message.split(" Legal moves:")[0];
+  const trimmedMessage = message.split(" Legal moves:")[0];
+
+  if (trimmedMessage.startsWith("Illegal Antichess move:")) {
+    const uciMove = trimmedMessage.replace("Illegal Antichess move:", "").trim();
+    return formatIllegalMoveMessage(uciMove.replace(/\.$/, ""));
+  }
+
+  if (trimmedMessage === "Game is already over.") {
+    return "Game over: use Undo or start a new game before moving.";
+  }
+
+  return trimmedMessage;
+}
+
+function formatIllegalMoveMessage(uciMove: string) {
+  return `Illegal Giveaway move: ${uciMove}. Use a highlighted backend legal move; captures may be mandatory.`;
+}
+
+function isApiDisconnectedError(error: unknown) {
+  return (
+    error instanceof Error &&
+    error.message.startsWith("Cannot reach backend API")
+  );
 }
 
 export default BoardPage;

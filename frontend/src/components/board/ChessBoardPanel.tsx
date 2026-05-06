@@ -106,6 +106,11 @@ function ChessBoardPanel({
     sourceSquare,
     targetSquare,
   }: PieceDropHandlerArgs) => {
+    if (disabled) {
+      onSelectSquare?.(null);
+      return false;
+    }
+
     if (!targetSquare || sourceSquare === targetSquare) {
       return false;
     }
@@ -118,6 +123,15 @@ function ChessBoardPanel({
     });
 
     return false;
+  };
+
+  const handleSquareSelection = (square?: string | null) => {
+    if (disabled) {
+      onSelectSquare?.(null);
+      return;
+    }
+
+    onSelectSquare?.(square && legalMoves?.[square] ? square : null);
   };
 
   const chessboardOptions: ChessboardOptions = {
@@ -136,15 +150,9 @@ function ChessBoardPanel({
     clearArrowsOnClick: false,
     clearArrowsOnPositionChange: false,
     onPieceDrop: handlePieceDrop,
-    onPieceClick: ({ square }) => {
-      onSelectSquare?.(square && legalMoves?.[square] ? square : null);
-    },
-    onPieceDrag: ({ square }) => {
-      onSelectSquare?.(square && legalMoves?.[square] ? square : null);
-    },
-    onSquareClick: ({ square }) => {
-      onSelectSquare?.(legalMoves?.[square] ? square : null);
-    },
+    onPieceClick: ({ square }) => handleSquareSelection(square),
+    onPieceDrag: ({ square }) => handleSquareSelection(square),
+    onSquareClick: ({ square }) => handleSquareSelection(square),
     boardStyle: {
       borderRadius: "8px",
       boxShadow: "0 24px 70px rgba(0, 0, 0, 0.38)",

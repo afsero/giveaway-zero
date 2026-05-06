@@ -26,8 +26,8 @@ function AnalysisPanel({
         </p>
         <h2 className="text-xl font-semibold text-white">Backend bot output</h2>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Placeholder responses come from the FastAPI API until real rules and
-          model services are introduced.
+          Bot choices, candidate lines, and legal move feedback come from the
+          FastAPI backend.
         </p>
       </div>
       {botMessage ? (
