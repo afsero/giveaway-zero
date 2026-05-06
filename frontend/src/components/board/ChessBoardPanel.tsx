@@ -24,7 +24,7 @@ export type ChessBoardPanelProps = {
     san: string;
   } | null;
   arrows?: Arrow[];
-  onMove?: (move: BoardMove) => boolean | void;
+  onMove?: (move: BoardMove) => void;
 };
 
 const lastMoveStyle = {
@@ -97,13 +97,13 @@ function ChessBoardPanel({
       return false;
     }
 
-    return (
-      onMove?.({
-        sourceSquare,
-        targetSquare,
-        piece: piece.pieceType,
-      }) === true
-    );
+    onMove?.({
+      sourceSquare,
+      targetSquare,
+      piece: piece.pieceType,
+    });
+
+    return false;
   };
 
   const chessboardOptions: ChessboardOptions = {
@@ -165,8 +165,8 @@ function ChessBoardPanel({
         </div>
       </div>
       <p className="text-center text-xs leading-5 text-slate-500">
-        Drag and drop is captured for the future move API; this mock board does
-        not apply or validate moves yet.
+        Drag and drop is sent to the placeholder API; this board still does not
+        validate Giveaway rules locally.
       </p>
     </div>
   );

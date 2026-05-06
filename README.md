@@ -51,8 +51,9 @@ giveaway-zero/
 
 ## Development
 
-GiveawayZero currently has a mock-only frontend and a mock-only FastAPI backend.
-The frontend does not connect to the backend yet.
+GiveawayZero currently has a Vite frontend connected to a mock-only FastAPI
+placeholder backend. The integration is API-shaped, but real
+Giveaway/Antichess rules and model logic are not implemented yet.
 
 ### Run With Docker
 
@@ -153,7 +154,8 @@ Detailed planning documents are available in `docs/`:
 
 ## Current Status
 
-The repository currently contains a mock-only Vite frontend, a mock-only FastAPI
-backend, planning documentation, and Docker Compose support for local
-development. Training code, real Giveaway/Antichess rules, datasets, and model
-training are not implemented yet.
+The repository currently contains a Vite frontend, a mock-only FastAPI backend,
+planning documentation, and Docker Compose support for local development. The
+Board page calls the placeholder backend API for game state, bot suggestions,
+and model status. Training code, real Giveaway/Antichess rules, datasets, and
+model training are not implemented yet.

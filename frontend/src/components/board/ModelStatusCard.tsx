@@ -1,12 +1,29 @@
 import { Activity, Bot, Database, Gauge } from "lucide-react";
 import { modelStatus } from "../../data/mockGame";
+import type { ModelStatusResponse } from "../../lib/api";
 
-function ModelStatusCard() {
+type ModelStatusCardProps = {
+  status?: ModelStatusResponse | null;
+  isLoading?: boolean;
+};
+
+function ModelStatusCard({ status, isLoading = false }: ModelStatusCardProps) {
   const rows = [
-    { label: "Stage", value: modelStatus.stage, icon: Activity },
-    { label: "Dataset", value: modelStatus.dataset, icon: Database },
-    { label: "Policy accuracy", value: modelStatus.policyAccuracy, icon: Gauge },
-    { label: "Legal move rate", value: modelStatus.legalMoveRate, icon: Gauge },
+    {
+      label: "Variant",
+      value: status?.variant ?? "Giveaway / Antichess",
+      icon: Database,
+    },
+    {
+      label: "Engine mode",
+      value: status?.engine_mode ?? modelStatus.mode,
+      icon: Activity,
+    },
+    {
+      label: "Model loaded",
+      value: status ? (status.model_loaded ? "Yes" : "No") : "Pending",
+      icon: Gauge,
+    },
   ];
 
   return (
@@ -19,12 +36,16 @@ function ModelStatusCard() {
           <p className="text-sm font-medium uppercase tracking-normal text-slate-500">
             Bot Status
           </p>
-          <h2 className="text-lg font-semibold text-white">{modelStatus.name}</h2>
+          <h2 className="text-lg font-semibold text-white">
+            {status?.model_name ?? modelStatus.name}
+          </h2>
         </div>
       </div>
 
       <div className="mb-4 rounded-md border border-ember/25 bg-ember/10 px-3 py-2 text-sm font-medium text-amber-200">
-        {modelStatus.mode}
+        {isLoading
+          ? "Loading backend model status..."
+          : status?.engine_mode ?? modelStatus.mode}
       </div>
 
       <div className="grid gap-2">
