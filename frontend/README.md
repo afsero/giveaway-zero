@@ -1,29 +1,37 @@
-# Frontend
+# GiveawayZero Frontend
 
-This folder will contain the GiveawayZero web client.
+Initial React, TypeScript, Vite, and Tailwind CSS frontend for GiveawayZero.
 
-## Planned Role
+This scaffold is mock-only. It does not connect to the backend, validate real
+Giveaway Chess rules, or run model inference yet.
 
-The frontend will provide a clean analysis-board style interface for playing Giveaway Chess against bots and reviewing game history.
+## Requirements
 
-## Planned Stack
+- Node.js 20 or newer
+- npm
 
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
+## Setup
 
-## Planned Features
+```bash
+npm install
+```
 
-- Interactive chessboard
-- Legal move highlighting
-- Move history panel
-- Previous and next move navigation
-- Bot move suggestions and candidate lines
-- Game status display
-- Future evaluation dashboard views
+## Run Locally
 
-## Current Status
+```bash
+npm run dev
+```
 
-No frontend application has been scaffolded yet. This folder currently contains planning documentation only.
+Vite will print the local development URL, usually `http://localhost:5173`.
 
+## Scripts
+
+- `npm run dev` starts the Vite development server.
+- `npm run build` type-checks the app and creates a production build.
+- `npm run preview` serves the production build locally.
+
+## Current Views
+
+- Landing page with project positioning, feature cards, and the AI pipeline.
+- Board page with a mock chessboard, move history, candidate moves, controls,
+  and model status.
