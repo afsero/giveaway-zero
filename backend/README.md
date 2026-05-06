@@ -1,26 +1,44 @@
-# Backend
+# GiveawayZero Backend
 
-This folder will contain the GiveawayZero FastAPI service.
+Initial FastAPI backend skeleton for GiveawayZero.
 
-## Planned Role
+This service is mock-only. It does not validate real Giveaway/Antichess rules,
+does not use `python-chess` yet, and does not load AI models.
 
-The backend will own game state validation, bot move selection, and API boundaries between the web app and the chess/AI logic.
+## Requirements
 
-## Planned Stack
+- Python 3.11 or newer
+- pip
 
-- FastAPI
-- Python
-- `python-chess` with Antichess/Giveaway variant support
+## Setup
 
-## Planned Responsibilities
+From this directory:
 
-- Validate legal Giveaway Chess moves
-- Create and manage game sessions
-- Return board state, legal moves, and game result status
-- Provide random and heuristic bot moves
-- Later, serve model-backed move predictions
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-## Current Status
+## Run Locally
 
-No backend service has been scaffolded yet. This folder currently contains planning documentation only.
+```bash
+uvicorn app.main:app --reload
+```
 
+The API will usually be available at `http://127.0.0.1:8000`.
+
+## Endpoints
+
+- `GET /health`
+- `POST /api/game/new`
+- `POST /api/game/legal-moves`
+- `POST /api/game/move`
+- `POST /api/bot/move`
+- `GET /api/model/status`
+
+## Current Behavior
+
+All game, legal move, bot, and model responses are deterministic placeholders
+designed to be frontend-friendly and ready for future `python-chess`
+integration.

@@ -1,0 +1,1 @@
+"""GiveawayZero backend package."""
