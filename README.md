@@ -24,7 +24,7 @@ The project is designed to grow in stages:
 - Chess rules and variants: `python-chess`, especially Antichess/Giveaway support
 - Training and ML: Python, PyTorch
 - Dataset: Lichess open Antichess/Giveaway PGN database
-- Deployment later: Docker and Docker Compose
+- Development tooling: Docker and Docker Compose
 
 ## Planned Product Features
 
@@ -48,6 +48,55 @@ giveaway-zero/
   README.md              Project overview
   .gitignore             Shared ignore rules
 ```
+
+## Development
+
+GiveawayZero currently has a mock-only frontend and a mock-only FastAPI backend.
+The frontend does not connect to the backend yet.
+
+### Run With Docker
+
+From the repository root:
+
+```bash
+docker compose up --build
+```
+
+Expected local URLs:
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8000`
+- Health check: `http://localhost:8000/health`
+
+The Docker setup is for local development. It bind-mounts `frontend/` and
+`backend/` for live editing, keeps frontend `node_modules` in a named Docker
+volume, and does not containerize `training/` yet.
+
+### Run Natively
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Backend:
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Native development URLs are the same defaults:
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8000`
+- Health check: `http://localhost:8000/health`
 
 ## AI Roadmap
 
@@ -104,5 +153,7 @@ Detailed planning documents are available in `docs/`:
 
 ## Current Status
 
-The repository currently contains only the initial folder structure and documentation. The next implementation step will be to scaffold the frontend and backend projects without introducing ML complexity too early.
-
+The repository currently contains a mock-only Vite frontend, a mock-only FastAPI
+backend, planning documentation, and Docker Compose support for local
+development. Training code, real Giveaway/Antichess rules, datasets, and model
+training are not implemented yet.
