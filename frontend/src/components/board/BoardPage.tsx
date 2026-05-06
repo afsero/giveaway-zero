@@ -29,7 +29,7 @@ function BoardPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [lastApiMessage, setLastApiMessage] = useState(
-    "Connecting to backend placeholder API...",
+    "Connecting to backend rules API...",
   );
   const [gameState, setGameState] = useState<GameStateResponse | null>(null);
   const [modelStatus, setModelStatus] = useState<ModelStatusResponse | null>(
@@ -52,6 +52,7 @@ function BoardPage() {
       return {
         ...game,
         legal_moves: legalMoves.legal_moves,
+        legal_moves_by_square: legalMoves.legal_moves_by_square,
       };
     } catch {
       return game;
@@ -113,7 +114,8 @@ function BoardPage() {
   }, []);
 
   const currentFen = gameState?.fen ?? mockBoardState.fen;
-  const legalMoves = gameState?.legal_moves ?? mockBoardState.legalMoves;
+  const legalMoves = gameState?.legal_moves_by_square ?? mockBoardState.legalMoves;
+  const legalMovesList = gameState?.legal_moves ?? [];
   const selectedSquare =
     Object.keys(legalMoves)[0] ?? mockBoardState.selectedSquare;
   const lastMove =
@@ -131,6 +133,7 @@ function BoardPage() {
     (count, record) => count + 1 + (record.black ? 1 : 0),
     0,
   );
+  const displayedPly = gameState?.ply ?? (totalPlies || mockBoardState.ply);
 
   const handleNewGame = async () => {
     setIsLoading(true);
@@ -161,12 +164,8 @@ function BoardPage() {
     setApiError(null);
     try {
       const updatedGame = await makeMove({
-        game_id: gameState?.game_id,
         fen: currentFen,
-        from_square: sourceSquare,
-        to_square: targetSquare,
-        uci: `${sourceSquare}${targetSquare}`,
-        side_to_move: gameState?.side_to_move ?? "white",
+        uci_move: `${sourceSquare}${targetSquare}`,
         player_color: gameState?.player_color ?? "white",
         bot_type: gameState?.bot_type ?? "random",
       });
@@ -190,12 +189,14 @@ function BoardPage() {
         game_id: gameState?.game_id ?? "mock-game-001",
         fen: currentFen,
         bot_type: gameState?.bot_type ?? "random",
-        side_to_move: gameState?.side_to_move === "white" ? "black" : "white",
-        legal_moves: legalMoves,
+        side_to_move: gameState?.turn ?? gameState?.side_to_move ?? "white",
+        legal_moves: legalMovesList,
       });
       setBotResponse(response);
       setLastApiMessage(
-        `${response.message} Selected ${response.selected_san} (${response.selected_move}).`,
+        response.selected_move
+          ? `${response.message} Selected ${response.selected_san} (${response.selected_move}).`
+          : response.message,
       );
       setApiStatus("connected");
     } catch (error) {
@@ -214,9 +215,7 @@ function BoardPage() {
             <div>
               <div className="flex flex-wrap items-center gap-3">
                 <p className="text-sm font-medium uppercase tracking-normal text-mint">
-                  {gameState?.is_mock
-                    ? "Backend mock position"
-                    : mockBoardState.phase}
+                  {gameState ? "Antichess rules active" : mockBoardState.phase}
                 </p>
                 <ApiStatusBadge status={apiStatus} />
               </div>
@@ -224,19 +223,18 @@ function BoardPage() {
                 Giveaway Chess Analysis
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                Board state, move history, bot candidates, and model status now
-                come from the FastAPI placeholder API.
+                Board state, legal moves, bot candidates, and model status come
+                from the FastAPI backend.
               </p>
             </div>
             <div className="grid gap-2 text-sm sm:min-w-44">
               <div className="rounded-md border border-ember/30 bg-ember/10 px-3 py-2 font-medium text-amber-200">
-                {formatSideToMove(gameState?.side_to_move) ??
+                {formatSideToMove(gameState?.turn ?? gameState?.side_to_move) ??
                   mockBoardState.status}
               </div>
               <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-slate-400">
                 <Clock3 aria-hidden="true" size={15} className="text-mint" />
-                Ply {totalPlies || mockBoardState.ply} /{" "}
-                {totalPlies || mockBoardState.totalPlies}
+                Ply {displayedPly}
               </div>
             </div>
           </div>
@@ -272,7 +270,11 @@ function BoardPage() {
           isLoading={isLoading && !modelStatus}
         />
         <AnalysisPanel
-          botMessage={botResponse ? `Bot selected ${botResponse.selected_san}` : null}
+          botMessage={
+            botResponse?.selected_san
+              ? `Bot selected ${botResponse.selected_san}`
+              : botResponse?.message ?? null
+          }
           candidateMoves={candidateMoves}
           moveHistory={moveHistory}
         />
@@ -327,7 +329,7 @@ function toMoveHistory(gameState: GameStateResponse | null): MoveRecord[] {
     turn: entry.turn,
     white: entry.white ?? "",
     black: entry.black ?? undefined,
-    note: "Backend placeholder move",
+    note: "Backend-validated move",
     current:
       index === entries.length - 1 && !entry.black
         ? "white"

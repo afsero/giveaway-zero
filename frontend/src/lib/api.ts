@@ -37,24 +37,38 @@ export type GameStateResponse = {
   game_id: string;
   variant: string;
   fen: string;
+  turn: SideToMove;
   side_to_move: SideToMove;
   status: string;
   message: string;
   player_color: PlayerColor;
   bot_type: BotType;
-  legal_moves: Record<string, string[]>;
+  legal_moves: string[];
+  legal_moves_by_square: Record<string, string[]>;
+  game_over: boolean;
+  result: string | null;
+  winner: SideToMove | null;
+  termination_reason: string | null;
+  move_number: number;
+  ply: number;
   move_history: MoveHistoryEntryResponse[];
   last_move: LastMoveResponse | null;
   candidate_moves: CandidateMoveResponse[];
-  is_mock: boolean;
 };
 
 export type LegalMovesResponse = {
   game_id: string;
   fen: string;
-  legal_moves: Record<string, string[]>;
+  turn: SideToMove;
+  legal_moves: string[];
+  legal_moves_by_square: Record<string, string[]>;
+  game_over: boolean;
+  result: string | null;
+  winner: SideToMove | null;
+  termination_reason: string | null;
+  move_number: number;
+  ply: number;
   message: string;
-  is_mock: boolean;
 };
 
 export type ModelStatusResponse = {
@@ -67,11 +81,14 @@ export type ModelStatusResponse = {
 export type BotMoveResponse = {
   game_id: string;
   bot_type: BotType;
-  selected_move: string;
-  selected_san: string;
+  selected_move: string | null;
+  selected_san: string | null;
   candidate_moves: CandidateMoveResponse[];
   message: string;
-  is_mock: boolean;
+  game_over: boolean;
+  result: string | null;
+  winner: SideToMove | null;
+  termination_reason: string | null;
 };
 
 export type NewGameRequest = {
@@ -85,13 +102,8 @@ export type LegalMovesRequest = {
 };
 
 export type GameMoveRequest = {
-  game_id?: string;
-  fen?: string;
-  from_square: string;
-  to_square: string;
-  uci: string;
-  san?: string | null;
-  side_to_move?: SideToMove;
+  fen: string;
+  uci_move: string;
   player_color?: PlayerColor;
   bot_type?: BotType;
 };
@@ -101,7 +113,7 @@ export type BotMoveRequest = {
   fen: string;
   bot_type?: BotType;
   side_to_move?: SideToMove;
-  legal_moves?: Record<string, string[]>;
+  legal_moves?: string[];
 };
 
 async function requestJson<T>(

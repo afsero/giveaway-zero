@@ -1,9 +1,9 @@
 # GiveawayZero Backend
 
-Initial FastAPI backend skeleton for GiveawayZero.
+FastAPI backend for GiveawayZero.
 
-This service is mock-only. It does not validate real Giveaway/Antichess rules,
-does not use `python-chess` yet, and does not load AI models.
+This service uses `python-chess` Antichess variant support for real
+Giveaway/Antichess legal move validation. It does not load AI models yet.
 
 ## Requirements
 
@@ -39,6 +39,12 @@ The API will usually be available at `http://127.0.0.1:8000`.
 
 ## Current Behavior
 
-All game, legal move, bot, and model responses are deterministic placeholders
-designed to be frontend-friendly and ready for future `python-chess`
-integration.
+Game creation, legal move generation, and move application use
+`chess.variant.AntichessBoard`. Bot responses are still simple placeholders
+selected from real legal moves.
+
+## Rule Check
+
+```bash
+python scripts/check_antichess_rules.py
+```

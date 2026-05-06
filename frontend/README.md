@@ -2,8 +2,9 @@
 
 Initial React, TypeScript, Vite, and Tailwind CSS frontend for GiveawayZero.
 
-The Board page connects to the placeholder FastAPI backend. It does not validate
-real Giveaway Chess rules or run model inference yet.
+The Board page connects to the FastAPI backend for Antichess legal moves and
+move application. The frontend does not validate real Giveaway Chess rules or
+run model inference.
 
 ## Requirements
 
@@ -33,8 +34,8 @@ Vite will print the local development URL, usually `http://localhost:5173`.
 ## Current Views
 
 - Landing page with project positioning, feature cards, and the AI pipeline.
-- Board page with a mock chessboard, move history, candidate moves, controls,
-  model status, and placeholder API connection status.
+- Board page with a chessboard, backend-backed legal move state, move history,
+  candidate moves, controls, model status, and API connection status.
 
 ## Notable UI Dependencies
 
