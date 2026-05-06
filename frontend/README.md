@@ -35,3 +35,8 @@ Vite will print the local development URL, usually `http://localhost:5173`.
 - Landing page with project positioning, feature cards, and the AI pipeline.
 - Board page with a mock chessboard, move history, candidate moves, controls,
   and model status.
+
+## Notable UI Dependencies
+
+- `react-chessboard` provides the chessboard rendering surface.
+- `lucide-react` provides interface icons.

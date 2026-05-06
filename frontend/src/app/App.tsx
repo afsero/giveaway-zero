@@ -13,9 +13,9 @@ function App() {
   return (
     <div className="min-h-screen overflow-x-hidden text-slate-100">
       <Navbar activeView={activeView} onNavigate={setActiveView} />
-      <main className="mx-auto flex w-full max-w-7xl flex-col px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+      <main className="mx-auto flex w-full max-w-[88rem] flex-col px-4 pb-10 pt-6 sm:px-6 lg:px-8">
         {activeView === "landing" ? (
-          <div className="flex flex-col gap-10">
+          <div className="flex flex-col gap-8 lg:gap-10">
             <HeroSection onLaunch={() => setActiveView("board")} />
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               {features.map((feature) => (

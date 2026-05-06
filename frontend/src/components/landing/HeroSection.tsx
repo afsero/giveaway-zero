@@ -6,13 +6,13 @@ type HeroSectionProps = {
 
 function HeroSection({ onLaunch }: HeroSectionProps) {
   return (
-    <section className="grid items-center gap-10 py-8 lg:grid-cols-[1.04fr_0.96fr] lg:py-14">
+    <section className="grid items-center gap-10 py-10 lg:grid-cols-[1.04fr_0.96fr] lg:py-16">
       <div className="max-w-3xl">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-mint/25 bg-mint/10 px-3 py-1 text-sm font-medium text-mint">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-md border border-mint/25 bg-mint/10 px-3 py-1.5 text-sm font-medium text-mint">
           <ShieldCheck aria-hidden="true" size={16} />
           Mock-only frontend scaffold
         </div>
-        <h1 className="max-w-3xl text-5xl font-semibold leading-tight text-white sm:text-6xl lg:text-7xl">
+        <h1 className="max-w-3xl text-5xl font-semibold leading-tight text-white sm:text-6xl">
           GiveawayZero
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl">
@@ -37,9 +37,21 @@ function HeroSection({ onLaunch }: HeroSectionProps) {
             Lichess Antichess pipeline planned
           </div>
         </div>
+        <div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
+          {["Board-first UI", "Mock engine data", "Backend-ready shape"].map(
+            (item) => (
+              <div
+                key={item}
+                className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-sm font-medium text-slate-300"
+              >
+                {item}
+              </div>
+            ),
+          )}
+        </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-lg border border-white/10 bg-panel/80 p-5 shadow-glow">
+      <div className="relative overflow-hidden rounded-lg border border-white/10 bg-panel/80 p-5 shadow-glow sm:p-6">
         <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
           <div>
             <p className="text-sm font-medium uppercase tracking-normal text-slate-500">
